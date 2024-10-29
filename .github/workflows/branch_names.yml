@@ -17,6 +17,13 @@ permissions:
   statuses: none
 
 on:
+<<<<<<< HEAD
+=======
+  push:
+    branches-ignore:
+      - gh-pages
+      - metakitty
+>>>>>>> 9c8b23e (wip)
   pull_request_target:
     branches:
       - 'master'
