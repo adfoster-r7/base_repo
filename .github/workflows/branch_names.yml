@@ -1,0 +1,111 @@
+name: Branch names
+
+# https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#permissions
+permissions:
+  actions: none
+  checks: none
+  contents: none
+  deployments: none
+  id-token: none
+  issues: none
+  discussions: none
+  packages: none
+  pages: none
+  pull-requests: none
+  repository-projects: none
+  security-events: none
+  statuses: none
+
+on:
+  push:
+    paths:
+      - '**/*'
+  pull_request:
+    types: [opened, reopened]
+    paths:
+      - '**/*'
+  pull_request_target:
+    types: [opened, reopened]
+    paths:
+      - '**/*'
+
+jobs:
+  handle-branch-names:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v6
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            // NOTE: The following section is JavaScript. Note that backticks will need to be escaped within
+            // the multiline comment strings in the following config. When editing this file, using JavaScript
+            // syntax highlighting might be easier.
+            //
+            // This script has intentionally been inlined instead of using third-party Github actions for both
+            // security and performance reasons.
+            const allConfig = {
+              pullRequests: {
+                'master': {
+                  close: true,
+                  // Note this comment exists in both the needs_unique_branch and label job
+                  comment: `
+                    Thanks for your pull request! We require for all contributed code to come from a **from a unique branch** in your repository before it can be merged.
+
+                    Please create a new branch in your fork of framework and resubmit this from that branch.
+
+                    If you are using Git on the command line that may look like:
+
+                    \`\`\`
+                    # Checkout the master branch
+                    git checkout master
+
+                    # Create a new branch for your feature
+                    git checkout -b <BRANCH_NAME>
+
+                    # Add your new files
+                    git add modules/my-cool-new-module
+
+                    # Commit your changes with a relevant message
+                    git commit
+
+                    # Push your changes to GitHub
+                    git push origin <BRANCH_NAME>
+
+                    # Now browse to the following URL and create your pull request!
+                    # - https://github.com/rapid7/metasploit-framework/pulls
+                    \`\`\`
+
+                    This helps protect the process, ensure users are aware of commits on the branch being considered for merge, allows for a location for more commits to be offered without mingling with other contributor changes and allows contributors to make progress while a PR is still being reviewed.
+
+                    Please do resubmit from a unique branch, we greatly value your contribution! :tada:
+                  `
+                },
+              },
+            };
+
+            console.log(JSON.stringify(context.payload, null, 4));
+            const branchName = context.eventName === 'issues' ? 'issues' : 'pullRequests';
+            const config = allConfig[issueType][context.payload.label.name];
+            if (!config) {
+              return;
+            }
+
+            if (config.comment) {
+              const precedingWhitespaceLength = config.comment.split("\n")[1].search(/\S/);
+              const commentWithoutPrecedingWhitespace = config.comment.split("\n").map(line => line.substring(precedingWhitespaceLength)).join("\n").trim();
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: commentWithoutPrecedingWhitespace
+              });
+            }
+            if (config.close) {
+              await github.rest.issues.update({
+                  issue_number: context.issue.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  state: 'closed'
+              });
+            }
+
